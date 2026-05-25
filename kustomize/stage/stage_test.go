@@ -319,6 +319,7 @@ func testingStage(ctx context.Context, testTarget obj, event *lifecycle.Event, s
 		"PodIP",
 		"NodeIPWith",
 		"PodIPWith",
+		"NodeIPsWith",
 
 		// Override built-in
 		"Now",
@@ -363,24 +364,32 @@ func testingStage(ctx context.Context, testTarget obj, event *lifecycle.Event, s
 
 func wrapFunction(name string) func(args ...any) any {
 	return func(args ...any) any {
-		if len(args) == 0 {
-			return fmt.Sprintf("<%s>", name)
+		formatCall := func() string {
+			if len(args) == 0 {
+				return fmt.Sprintf("<%s>", name)
+			}
+
+			return fmt.Sprintf("<%s(%s)>", name,
+				strings.Join(
+					slices.Map(args,
+						func(arg any) string {
+							a := fmt.Sprintf("%#v", arg)
+							if a == "" {
+								return `""`
+							}
+							return a
+						},
+					),
+					", ",
+				),
+			)
 		}
 
-		return fmt.Sprintf("<%s(%s)>", name,
-			strings.Join(
-				slices.Map(args,
-					func(arg any) string {
-						a := fmt.Sprintf("%#v", arg)
-						if a == "" {
-							return `""`
-						}
-						return a
-					},
-				),
-				", ",
-			),
-		)
+		if name == "NodeIPsWith" {
+			return []string{formatCall()}
+		}
+
+		return formatCall()
 	}
 }
 

@@ -56,6 +56,17 @@ func Test_parseCIDR(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "test parseCIDR ipv6 success",
+			args: args{
+				s: "2001:db8::1/64",
+			},
+			want: &net.IPNet{
+				IP:   net.ParseIP("2001:db8::1"),
+				Mask: net.CIDRMask(64, 128),
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,6 +137,17 @@ func Test_ipPool_new(t *testing.T) {
 				index: 0,
 			},
 			want: "172.30.40.1",
+		},
+		{
+			name: "test ipPool get new ipv6 ip",
+			fields: fields{
+				cidr: func() *net.IPNet {
+					cidr, _ := parseCIDR("2001:db8::/64")
+					return cidr
+				}(),
+				index: 0,
+			},
+			want: "2001:db8::1",
 		},
 	}
 	for _, tt := range tests {

@@ -2422,8 +2422,21 @@ string
 </em>
 </td>
 <td>
-<p>The default IP assigned to the Pod on maintained Nodes.
-is the default value for flag &ndash;cidr</p>
+<p>The default CIDR assigned to Pods on maintained Nodes (IPv4 or IPv6), and
+used to derive per-node Pod CIDRs. This is the default value for flag &ndash;cidr.
+This field is also set to the first item of CIDRs when CIDRs is configured.</p>
+<p>Deprecated: use CIDRs instead.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cidrs</code>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>The default CIDRs assigned to Pods on maintained Nodes (IPv4 and/or IPv6), and used to derive per-node Pod CIDRs. This is the default value for flag &ndash;cidrs.</p>
 </td>
 </tr>
 <tr>
@@ -2436,6 +2449,7 @@ string
 <td>
 <p>The ip of all nodes maintained by the Kwok
 is the default value for flag &ndash;node-ip</p>
+<p>Deprecated: use NodeAddresses instead.</p>
 </td>
 </tr>
 <tr>
@@ -2448,6 +2462,19 @@ string
 <td>
 <p>The name of all nodes maintained by the Kwok
 is the default value for flag &ndash;node-name</p>
+<p>Deprecated: use NodeAddresses instead.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeAddresses</code>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>The addresses of all nodes maintained by the Kwok, including IPs and hostnames.
+is the default value for flag &ndash;node-addresses</p>
 </td>
 </tr>
 <tr>

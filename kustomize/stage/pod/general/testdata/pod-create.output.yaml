@@ -39,8 +39,12 @@ stages:
             waiting:
               reason: ContainerCreating
         hostIP: <NodeIPWith("node")>
+        hostIPs:
+        - ip: <NodeIPsWith("node")>
         phase: Pending
         podIP: <PodIPWith("node", false, "", "pod-create", "")>
+        podIPs:
+        - ip: <PodIPWith("node", false, "", "pod-create", "")>
     kind: patch
     subresource: status
     type: application/merge-patch+json

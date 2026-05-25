@@ -24,9 +24,13 @@ stages:
             running:
               startedAt: <Now>
         hostIP: <NodeIPWith("node")>
+        hostIPs:
+        - ip: <NodeIPsWith("node")>
         initContainerStatuses: null
         phase: Running
         podIP: <PodIPWith("node", false, "", "pod-pending", "")>
+        podIPs:
+        - ip: <PodIPWith("node", false, "", "pod-pending", "")>
         startTime: <Now>
     kind: patch
     subresource: status

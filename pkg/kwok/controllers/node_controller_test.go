@@ -19,7 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -164,5 +166,67 @@ func TestNodeController(t *testing.T) {
 	}, wait.WithContinueOnError(5))
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func Test_getNodeHostIPs(t *testing.T) {
+	tests := []struct {
+		name string
+		node *corev1.Node
+		want []net.IP
+	}{
+		{
+			name: "single stack internal ip",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{Type: corev1.NodeInternalIP, Address: "10.0.0.10"},
+						{Type: corev1.NodeExternalIP, Address: "1.2.3.4"},
+					},
+				},
+			},
+			want: []net.IP{net.ParseIP("10.0.0.10")},
+		},
+		{
+			name: "dual stack prefers internal and keeps one per family",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{Type: corev1.NodeExternalIP, Address: "2001:db8::20"},
+						{Type: corev1.NodeInternalIP, Address: "10.0.0.20"},
+						{Type: corev1.NodeInternalIP, Address: "2001:db8::10"},
+						{Type: corev1.NodeExternalIP, Address: "2.2.2.2"},
+					},
+				},
+			},
+			want: []net.IP{
+				net.ParseIP("10.0.0.20"),
+				net.ParseIP("2001:db8::10"),
+			},
+		},
+		{
+			name: "dual stack with ipv6 primary",
+			node: &corev1.Node{
+				Status: corev1.NodeStatus{
+					Addresses: []corev1.NodeAddress{
+						{Type: corev1.NodeInternalIP, Address: "2001:db8::30"},
+						{Type: corev1.NodeInternalIP, Address: "10.0.0.30"},
+					},
+				},
+			},
+			want: []net.IP{
+				net.ParseIP("2001:db8::30"),
+				net.ParseIP("10.0.0.30"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getNodeHostIPs(tt.node)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getNodeHostIPs() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -41,6 +41,8 @@ stages:
             waiting:
               reason: PodInitializing
         hostIP: <NodeIPWith("node")>
+        hostIPs:
+        - ip: <NodeIPsWith("node")>
         initContainerStatuses:
         - image: init-image
           name: init-container
@@ -52,6 +54,8 @@ stages:
               reason: PodInitializing
         phase: Pending
         podIP: <PodIPWith("node", false, "", "pod-create-with-init", "")>
+        podIPs:
+        - ip: <PodIPWith("node", false, "", "pod-create-with-init", "")>
     kind: patch
     subresource: status
     type: application/merge-patch+json

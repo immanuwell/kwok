@@ -1573,8 +1573,10 @@ func Convert_v1alpha1_KwokConfiguration_To_internalversion_KwokConfiguration(in 
 func autoConvert_internalversion_KwokConfigurationOptions_To_v1alpha1_KwokConfigurationOptions(in *KwokConfigurationOptions, out *configv1alpha1.KwokConfigurationOptions, s conversion.Scope) error {
 	out.EnableCRDs = *(*[]string)(unsafe.Pointer(&in.EnableCRDs))
 	out.CIDR = in.CIDR
+	out.CIDRs = *(*[]string)(unsafe.Pointer(&in.CIDRs))
 	out.NodeIP = in.NodeIP
 	out.NodeName = in.NodeName
+	out.NodeAddresses = *(*[]string)(unsafe.Pointer(&in.NodeAddresses))
 	out.NodePort = in.NodePort
 	out.TLSCertFile = in.TLSCertFile
 	out.TLSPrivateKeyFile = in.TLSPrivateKeyFile
@@ -1618,8 +1620,10 @@ func Convert_internalversion_KwokConfigurationOptions_To_v1alpha1_KwokConfigurat
 func autoConvert_v1alpha1_KwokConfigurationOptions_To_internalversion_KwokConfigurationOptions(in *configv1alpha1.KwokConfigurationOptions, out *KwokConfigurationOptions, s conversion.Scope) error {
 	out.EnableCRDs = *(*[]string)(unsafe.Pointer(&in.EnableCRDs))
 	out.CIDR = in.CIDR
+	out.CIDRs = *(*[]string)(unsafe.Pointer(&in.CIDRs))
 	out.NodeIP = in.NodeIP
 	out.NodeName = in.NodeName
+	out.NodeAddresses = *(*[]string)(unsafe.Pointer(&in.NodeAddresses))
 	out.NodePort = in.NodePort
 	out.TLSCertFile = in.TLSCertFile
 	out.TLSPrivateKeyFile = in.TLSPrivateKeyFile

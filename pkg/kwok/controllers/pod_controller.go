@@ -131,10 +131,11 @@ func NewPodController(conf PodControllerConfig) (*PodController, error) {
 		enableMetrics:                         conf.EnableMetrics,
 	}
 	funcMap := utilsmaps.Merge(gotpl.FuncMap{
-		"NodeIP":     c.funcNodeIP,
-		"PodIP":      c.funcPodIP,
-		"NodeIPWith": c.funcNodeIPWith,
-		"PodIPWith":  c.funcPodIPWith,
+		"NodeIP":      c.funcNodeIP,
+		"PodIP":       c.funcPodIP,
+		"NodeIPWith":  c.funcNodeIPWith,
+		"PodIPWith":   c.funcPodIPWith,
+		"NodeIPsWith": c.funcNodeIPsWith,
 	}, conf.FuncMap)
 	c.renderer = gotpl.NewRenderer(funcMap)
 	return c, nil
@@ -512,9 +513,7 @@ func (c *PodController) recyclingPodIP(ctx context.Context, pod *corev1.Pod) {
 		cidr := c.defaultCIDR
 		node, ok := c.nodeCacheGetter.Get(pod.Spec.NodeName)
 		if ok {
-			if node.Spec.PodCIDR != "" {
-				cidr = node.Spec.PodCIDR
-			}
+			cidr = getNodePodCIDR(node, c.defaultCIDR)
 			pool, err := c.ipPool(cidr)
 			if err != nil {
 				logger.Error("Failed to get ip pool", err,
@@ -535,9 +534,7 @@ func (c *PodController) markPodIP(pod *corev1.Pod) {
 			cidr := c.defaultCIDR
 			node, ok := c.nodeCacheGetter.Get(pod.Spec.NodeName)
 			if ok {
-				if node.Spec.PodCIDR != "" {
-					cidr = node.Spec.PodCIDR
-				}
+				cidr = getNodePodCIDR(node, c.defaultCIDR)
 				pool, err := c.ipPool(cidr)
 				if err == nil {
 					pool.Use(pod.Status.PodIP)
@@ -552,17 +549,29 @@ func (c *PodController) funcNodeIP() string {
 }
 
 func (c *PodController) funcNodeIPWith(nodeName string) string {
+	nodeIPs := c.funcNodeIPsWith(nodeName)
+	if len(nodeIPs) != 0 {
+		return nodeIPs[0]
+	}
+	return c.nodeIP
+}
+
+func (c *PodController) funcNodeIPsWith(nodeName string) []string {
 	_, has := c.nodeGetFunc(nodeName)
 	if has && c.nodeCacheGetter != nil {
 		node, ok := c.nodeCacheGetter.Get(nodeName)
 		if ok {
 			hostIPs := getNodeHostIPs(node)
 			if len(hostIPs) != 0 {
-				return hostIPs[0].String()
+				ips := make([]string, 0, len(hostIPs))
+				for _, ip := range hostIPs {
+					ips = append(ips, ip.String())
+				}
+				return ips
 			}
 		}
 	}
-	return c.nodeIP
+	return []string{c.nodeIP}
 }
 
 func (c *PodController) funcPodIP() string {
@@ -584,9 +593,7 @@ func (c *PodController) funcPodIPWith(nodeName string, hostNetwork bool, uid, na
 	if has && c.nodeCacheGetter != nil {
 		node, ok := c.nodeCacheGetter.Get(nodeName)
 		if ok {
-			if node.Spec.PodCIDR != "" {
-				podCIDR = node.Spec.PodCIDR
-			}
+			podCIDR = getNodePodCIDR(node, c.defaultCIDR)
 		}
 	}
 
@@ -595,6 +602,24 @@ func (c *PodController) funcPodIPWith(nodeName string, hostNetwork bool, uid, na
 		return pool.Get(), nil
 	}
 	return c.nodeIP, nil
+}
+
+func getNodePodCIDR(node *corev1.Node, defaultCIDR string) string {
+	if node == nil {
+		return defaultCIDR
+	}
+
+	if node.Spec.PodCIDR != "" {
+		return node.Spec.PodCIDR
+	}
+
+	for _, cidr := range node.Spec.PodCIDRs {
+		if cidr != "" {
+			return cidr
+		}
+	}
+
+	return defaultCIDR
 }
 
 // putPodInfo puts pod info

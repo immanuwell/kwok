@@ -730,6 +730,16 @@ func (in *KwokConfigurationOptions) DeepCopyInto(out *KwokConfigurationOptions) 
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.CIDRs != nil {
+		in, out := &in.CIDRs, &out.CIDRs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.NodeAddresses != nil {
+		in, out := &in.NodeAddresses, &out.NodeAddresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

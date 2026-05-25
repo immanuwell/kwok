@@ -77,9 +77,12 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 	flags.Kubeconfig = utilspath.RelFromHome(kubeconfig.GetRecommendedKubeconfigPath())
 
-	cmd.Flags().StringVar(&flags.Options.CIDR, "cidr", flags.Options.CIDR, "CIDR of the pod ip")
+	cmd.Flags().StringSliceVar(&flags.Options.CIDRs, "cidr", flags.Options.CIDRs, "CIDRs of the pod IPs (IPv4 and/or IPv6)")
 	cmd.Flags().StringVar(&flags.Options.NodeIP, "node-ip", flags.Options.NodeIP, "IP of the node")
+	_ = cmd.Flags().MarkDeprecated("node-ip", "Please use --node-addresses instead")
 	cmd.Flags().StringVar(&flags.Options.NodeName, "node-name", flags.Options.NodeName, "Name of the node")
+	_ = cmd.Flags().MarkDeprecated("node-name", "Please use --node-addresses instead")
+	cmd.Flags().StringSliceVar(&flags.Options.NodeAddresses, "node-addresses", flags.Options.NodeAddresses, "Addresses of the node")
 	cmd.Flags().IntVar(&flags.Options.NodePort, "node-port", flags.Options.NodePort, "Port of the node")
 	cmd.Flags().StringVar(&flags.Options.TLSCertFile, "tls-cert-file", flags.Options.TLSCertFile, "File containing the default x509 Certificate for HTTPS")
 	cmd.Flags().StringVar(&flags.Options.TLSPrivateKeyFile, "tls-private-key-file", flags.Options.TLSPrivateKeyFile, "File containing the default x509 private key matching --tls-cert-file")
@@ -119,6 +122,8 @@ var crdDefines = map[string]struct{}{
 
 func runE(ctx context.Context, flags *flagpole) error {
 	logger := log.FromContext(ctx)
+
+	normalizePodCIDROptions(&flags.Options)
 
 	id, err := controllers.Identity()
 	if err != nil {
@@ -303,6 +308,17 @@ func runE(ctx context.Context, flags *flagpole) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func normalizePodCIDROptions(options *internalversion.KwokConfigurationOptions) {
+	if len(options.CIDRs) != 0 {
+		options.CIDR = options.CIDRs[0]
+		return
+	}
+
+	if options.CIDR != "" {
+		options.CIDRs = []string{options.CIDR}
+	}
 }
 
 func startServer(ctx context.Context, flags *flagpole, ctr *controllers.Controller, typedKwokClient versioned.Interface, tracingProvider tracing.TracerProvider) (err error) {

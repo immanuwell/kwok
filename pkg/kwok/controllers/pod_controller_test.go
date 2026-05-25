@@ -47,6 +47,11 @@ const (
 
 	secondNodeIP  = "172.0.0.1"
 	secondPodCIDR = "172.100.0.0/24"
+
+	dualStackNodeIPv6    = "2001:db8::10"
+	dualStackNodeIPv4    = "10.200.0.10"
+	dualStackPodCIDRIPv6 = "2001:db8:1::/64"
+	dualStackPodCIDRIPv4 = "10.200.0.0/24"
 )
 
 func TestPodController(t *testing.T) {
@@ -55,6 +60,27 @@ func TestPodController(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:              "node0",
 				CreationTimestamp: metav1.Now(),
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "node2",
+				CreationTimestamp: metav1.Now(),
+			},
+			Spec: corev1.NodeSpec{
+				PodCIDRs: []string{dualStackPodCIDRIPv6, dualStackPodCIDRIPv4},
+			},
+			Status: corev1.NodeStatus{
+				Addresses: []corev1.NodeAddress{
+					{
+						Type:    corev1.NodeInternalIP,
+						Address: dualStackNodeIPv6,
+					},
+					{
+						Type:    corev1.NodeInternalIP,
+						Address: dualStackNodeIPv4,
+					},
+				},
 			},
 		},
 		&corev1.Node{
@@ -151,6 +177,39 @@ func TestPodController(t *testing.T) {
 				Phase: corev1.PodPending,
 			},
 		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "pod-with-node2-dual-stack-cidr",
+				Namespace:         "default",
+				CreationTimestamp: metav1.Now(),
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "test-image",
+					},
+				},
+				NodeName: "node2",
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "pod-with-host-network-node2",
+				Namespace:         "default",
+				CreationTimestamp: metav1.Now(),
+			},
+			Spec: corev1.PodSpec{
+				HostNetwork: true,
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "test-image",
+					},
+				},
+				NodeName: "node2",
+			},
+		},
 	)
 
 	wantHostIPFunc := func(node corev1.Node) string {
@@ -165,11 +224,19 @@ func TestPodController(t *testing.T) {
 	}
 
 	wantPodCIDRFunc := func(node corev1.Node) string {
-		podCIDR := defaultPodCIDR
-		if node.Spec.PodCIDR != "" {
-			podCIDR = node.Spec.PodCIDR
+		return getNodePodCIDR(&node, defaultPodCIDR)
+	}
+	wantHostIPsFunc := func(node corev1.Node) []string {
+		hostIPs := getNodeHostIPs(&node)
+		if len(hostIPs) == 0 {
+			return []string{defaultNodeIP}
 		}
-		return podCIDR
+
+		ips := make([]string, 0, len(hostIPs))
+		for _, ip := range hostIPs {
+			ips = append(ips, ip.String())
+		}
+		return ips
 	}
 	nodeGetFunc := func(nodeName string) (*NodeInfo, bool) {
 		_, err := clientset.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
@@ -210,6 +277,10 @@ func TestPodController(t *testing.T) {
 			return false, nil
 		}
 		_, ok = nodeCache.Get("node1")
+		if !ok {
+			return false, nil
+		}
+		_, ok = nodeCache.Get("node2")
 		if !ok {
 			return false, nil
 		}
@@ -263,6 +334,10 @@ func TestPodController(t *testing.T) {
 				if node.Spec.PodCIDR != wantPodCIRD {
 					t.Fatal(fmt.Errorf("want node %s podCIDR=%s, got %s", node.Name, node.Spec.PodCIDR, wantPodCIRD))
 				}
+			} else if len(node.Spec.PodCIDRs) != 0 {
+				if node.Spec.PodCIDRs[0] != wantPodCIRD {
+					t.Fatal(fmt.Errorf("want node %s podCIDR=%s, got %s", node.Name, node.Spec.PodCIDRs[0], wantPodCIRD))
+				}
 			} else {
 				if defaultPodCIDR != wantPodCIRD {
 					t.Fatal(fmt.Errorf("want node %s podCIDR=%s, got %s", node.Name, defaultPodCIDR, wantPodCIRD))
@@ -311,8 +386,8 @@ func TestPodController(t *testing.T) {
 		if err != nil {
 			return false, fmt.Errorf("list pods error: %w", err)
 		}
-		if len(list.Items) != 5 {
-			return false, fmt.Errorf("want 5 pods, got %d", len(list.Items))
+		if len(list.Items) != 7 {
+			return false, fmt.Errorf("want 7 pods, got %d", len(list.Items))
 		}
 
 		for index, pod := range list.Items {
@@ -332,14 +407,37 @@ func TestPodController(t *testing.T) {
 					if pod.Status.HostIP != wantHostIP {
 						return false, fmt.Errorf("want pod %s hostIP=%s, got %s", pod.Name, wantHostIP, pod.Status.HostIP)
 					}
+					wantHostIPs := wantHostIPsFunc(*node)
+					if len(pod.Status.HostIPs) != len(wantHostIPs) {
+						return false, fmt.Errorf("want pod %s hostIPs count=%d, got %d", pod.Name, len(wantHostIPs), len(pod.Status.HostIPs))
+					}
+					for i := range wantHostIPs {
+						if pod.Status.HostIPs[i].IP != wantHostIPs[i] {
+							return false, fmt.Errorf("want pod %s hostIPs[%d]=%s, got %s", pod.Name, i, wantHostIPs[i], pod.Status.HostIPs[i].IP)
+						}
+					}
 					if pod.Spec.HostNetwork {
 						if pod.Status.PodIP != wantHostIP {
 							return false, fmt.Errorf("want pod %s podIP=%s, got %s", pod.Name, wantHostIP, pod.Status.PodIP)
+						}
+						if len(pod.Status.PodIPs) != len(wantHostIPs) {
+							return false, fmt.Errorf("want pod %s podIPs count=%d, got %d", pod.Name, len(wantHostIPs), len(pod.Status.PodIPs))
+						}
+						for i := range wantHostIPs {
+							if pod.Status.PodIPs[i].IP != wantHostIPs[i] {
+								return false, fmt.Errorf("want pod %s podIPs[%d]=%s, got %s", pod.Name, i, wantHostIPs[i], pod.Status.PodIPs[i].IP)
+							}
 						}
 					} else {
 						cidr, _ := parseCIDR(wantPodCIRD)
 						if !cidr.Contains(net.ParseIP(pod.Status.PodIP)) {
 							return false, fmt.Errorf("want pod %s podIP=%s in %s, got not", pod.Name, pod.Status.PodIP, wantPodCIRD)
+						}
+						if len(pod.Status.PodIPs) != 1 {
+							return false, fmt.Errorf("want pod %s podIPs count=1, got %d", pod.Name, len(pod.Status.PodIPs))
+						}
+						if pod.Status.PodIPs[0].IP != pod.Status.PodIP {
+							return false, fmt.Errorf("want pod %s podIPs[0]=%s, got %s", pod.Name, pod.Status.PodIP, pod.Status.PodIPs[0].IP)
 						}
 					}
 				}
@@ -392,8 +490,8 @@ func TestPodController(t *testing.T) {
 		if err != nil {
 			return false, fmt.Errorf("list pods error: %w", err)
 		}
-		if len(list.Items) != 4 {
-			return false, fmt.Errorf("want 4 pods, got %d", len(list.Items))
+		if len(list.Items) != 6 {
+			return false, fmt.Errorf("want 6 pods, got %d", len(list.Items))
 		}
 		return true, nil
 	}, wait.WithContinueOnError(10))

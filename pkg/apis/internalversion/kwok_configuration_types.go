@@ -37,13 +37,25 @@ type KwokConfigurationOptions struct {
 	EnableCRDs []string
 
 	// The default IP assigned to the Pod on maintained Nodes.
+	//
+	// Deprecated: use CIDRs instead.
 	CIDR string
 
+	// The default IP ranges assigned to Pods on maintained Nodes.
+	CIDRs []string
+
 	// The ip of all nodes maintained by the Kwok
+	//
+	// Deprecated: use NodeAddresses instead.
 	NodeIP string
 
 	// The name of all nodes maintained by the Kwok
+	//
+	// Deprecated: use NodeAddresses instead.
 	NodeName string
+
+	// The addresses of all nodes maintained by the Kwok, including IPs and hostnames.
+	NodeAddresses []string
 
 	// The port of all nodes maintained by the Kwok
 	NodePort int

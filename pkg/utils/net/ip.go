@@ -18,6 +18,8 @@ package net
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math/big"
 	"net"
 )
 
@@ -55,10 +57,17 @@ func AddIP(ip net.IP, add uint64) net.IP {
 	out := make(net.IP, len(ip))
 	copy(out, ip)
 
-	i := binary.BigEndian.Uint64(out[len(out)-8:])
-	i += add
-
-	binary.BigEndian.PutUint64(out[len(out)-8:], i)
+	low := binary.BigEndian.Uint64(out[len(out)-8:])
+	low += add
+	binary.BigEndian.PutUint64(out[len(out)-8:], low)
+	if low < add {
+		for i := len(out) - 9; i >= 0; i-- {
+			out[i]++
+			if out[i] != 0 {
+				break
+			}
+		}
+	}
 	return out
 }
 
@@ -74,11 +83,37 @@ func ParseCIDR(s string) (*net.IPNet, error) {
 
 // AddCIDR adds the CIDR.
 func AddCIDR(cidr string, index int) (string, error) {
+	if index < 0 {
+		return "", fmt.Errorf("index must be non-negative")
+	}
+
 	ipnet, err := ParseCIDR(cidr)
 	if err != nil {
 		return "", err
 	}
+
 	ones, bits := ipnet.Mask.Size()
-	ipnet.IP = AddIP(ipnet.IP, uint64((1<<(bits-ones))*index))
+	ip := ipnet.IP
+	if bits == net.IPv4len*8 {
+		ip = ip.To4()
+	} else {
+		ip = ip.To16()
+	}
+	if ip == nil {
+		return "", fmt.Errorf("invalid cidr %q", cidr)
+	}
+
+	offset := new(big.Int).SetInt64(int64(index))
+	offset.Lsh(offset, uint(bits-ones))
+
+	ipInt := new(big.Int).SetBytes(ip)
+	ipInt.Add(ipInt, offset)
+
+	maxIP := new(big.Int).Lsh(big.NewInt(1), uint(bits))
+	if ipInt.Cmp(maxIP) >= 0 {
+		return "", fmt.Errorf("cidr %q with index %d overflows ip range", cidr, index)
+	}
+
+	ipnet.IP = ipInt.FillBytes(make([]byte, len(ip)))
 	return ipnet.String(), nil
 }
