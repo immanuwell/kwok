@@ -9,7 +9,7 @@ kwok [flags]
 ### Options
 
 ```
-      --cidr strings                                   CIDRs of the pod IPs (IPv4 and/or IPv6) (default [10.0.0.0/24,fd00::/64])
+      --cidrs strings                                  CIDRs of the pod IPs (IPv4 and/or IPv6) (default [10.0.0.0/24,fd00::/64])
   -c, --config strings                                 config path (default [~/.kwok/kwok.yaml])
       --enable-crds strings                            List of CRDs to enable
   -h, --help                                           help for kwok

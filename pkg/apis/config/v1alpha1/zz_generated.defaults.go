@@ -37,9 +37,6 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 }
 
 func SetObjectDefaults_KwokConfiguration(in *KwokConfiguration) {
-	if in.Options.CIDR == "" {
-		in.Options.CIDR = "10.0.0.0/24"
-	}
 	if in.Options.CIDRs == nil {
 		if err := json.Unmarshal([]byte(`["10.0.0.0/24","fd00::/64"]`), &in.Options.CIDRs); err != nil {
 			panic(err)

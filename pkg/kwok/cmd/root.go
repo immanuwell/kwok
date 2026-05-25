@@ -77,7 +77,9 @@ func NewCommand(ctx context.Context) *cobra.Command {
 
 	flags.Kubeconfig = utilspath.RelFromHome(kubeconfig.GetRecommendedKubeconfigPath())
 
-	cmd.Flags().StringSliceVar(&flags.Options.CIDRs, "cidr", flags.Options.CIDRs, "CIDRs of the pod IPs (IPv4 and/or IPv6)")
+	cmd.Flags().StringVar(&flags.Options.CIDR, "cidr", flags.Options.CIDR, "CIDR of the pod IP")
+	_ = cmd.Flags().MarkDeprecated("cidr", "Please use --cidrs instead")
+	cmd.Flags().StringSliceVar(&flags.Options.CIDRs, "cidrs", flags.Options.CIDRs, "CIDRs of the pod IPs (IPv4 and/or IPv6)")
 	cmd.Flags().StringVar(&flags.Options.NodeIP, "node-ip", flags.Options.NodeIP, "IP of the node")
 	_ = cmd.Flags().MarkDeprecated("node-ip", "Please use --node-addresses instead")
 	cmd.Flags().StringVar(&flags.Options.NodeName, "node-name", flags.Options.NodeName, "Name of the node")

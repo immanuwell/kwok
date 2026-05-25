@@ -192,6 +192,9 @@ func TestPodController(t *testing.T) {
 				},
 				NodeName: "node2",
 			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodPending,
+			},
 		},
 		&corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -208,6 +211,9 @@ func TestPodController(t *testing.T) {
 					},
 				},
 				NodeName: "node2",
+			},
+			Status: corev1.PodStatus{
+				Phase: corev1.PodPending,
 			},
 		},
 	)
